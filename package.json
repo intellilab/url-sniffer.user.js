@@ -1,6 +1,6 @@
 {
   "name": "url-sniffer",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Sniff URLs in HTML",
   "author": "Gerald <gera2ld@live.com>",
   "license": "MIT",
