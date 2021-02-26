@@ -6,7 +6,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "postinstall": "husky install",
+    "prepare": "husky install",
     "dev": "rollup -wc rollup.conf.js",
     "clean": "del-cli dist",
     "build:js": "rollup -c rollup.conf.js",
