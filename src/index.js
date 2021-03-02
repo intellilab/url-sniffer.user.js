@@ -214,7 +214,7 @@ function handleMouseUp() {
 
 function handleCopy() {
   const urls = context.items.filter(item => item.selected).map(item => item.el.href);
-  GM_setClipboard(urls.join('\n'));
+  GM_setClipboard(urls.join('\r\n'));
   VM.showToast('URLs copied', {
     shadow: false,
     className: styles.toast,
