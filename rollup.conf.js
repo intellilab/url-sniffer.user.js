@@ -1,11 +1,10 @@
-const fs = require('fs');
+const path = require('path');
 const { getRollupPlugins } = require('@gera2ld/plaid');
+const userscript = require('rollup-plugin-userscript');
 const pkg = require('./package.json');
 
 const DIST = 'dist';
 const FILENAME = 'index';
-const BANNER = fs.readFileSync('src/meta.js', 'utf8')
-.replace('process.env.VERSION', pkg.version);
 
 const bundleOptions = {
   extend: true,
@@ -20,11 +19,19 @@ const rollupConfig = [
   {
     input: {
       input: 'src/index.js',
-      plugins: getRollupPlugins({
-        esm: true,
-        minimize: false,
-        postcss: postcssOptions,
-      }),
+      plugins: [
+        ...getRollupPlugins({
+          esm: true,
+          minimize: false,
+          postcss: postcssOptions,
+        }),
+        userscript(
+          path.resolve('src/meta.js'),
+          meta => meta
+            .replace('process.env.VERSION', pkg.version)
+            .replace('process.env.AUTHOR', pkg.author),
+        ),
+      ],
     },
     output: {
       format: 'iife',
@@ -40,9 +47,6 @@ rollupConfig.forEach((item) => {
     // If set to false, circular dependencies and live bindings for external imports won't work
     externalLiveBindings: false,
     ...item.output,
-    ...BANNER && {
-      banner: BANNER,
-    },
   };
 });
 
