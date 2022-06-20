@@ -20,6 +20,7 @@ const STYLE_TO_SELECT = {
   stroke: '#bb08',
   fill: '#bb02',
 };
+let rendering = false;
 const mask = VM.getHostElement(false);
 mask.addStyle(stylesheet);
 mask.root.className = styles.root;
@@ -27,6 +28,10 @@ mask.root.addEventListener('mousedown', handleMouseDown);
 mask.root.addEventListener('mouseup', handleMouseUp);
 mask.root.addEventListener('mousemove', handleMouseMove);
 mask.root.addEventListener('click', handleClick);
+mask.root.addEventListener('dblclick', () => {
+  handleCopy();
+  close();
+});
 
 GM_registerMenuCommand('Toggle sniffer', toggle);
 
@@ -68,16 +73,21 @@ function close() {
 }
 
 function update() {
-  context.items.forEach((item) => {
-    const rect = item.el.getBoundingClientRect();
-    item.pos = {
-      x: rect.left,
-      y: rect.top,
-      w: rect.width,
-      h: rect.height,
-    };
+  if (rendering) return;
+  rendering = true;
+  requestAnimationFrame(() => {
+    context.items.forEach((item) => {
+      const rect = item.el.getBoundingClientRect();
+      item.pos = {
+        x: rect.left,
+        y: rect.top,
+        w: rect.width,
+        h: rect.height,
+      };
+    });
+    render();
+    rendering = false;
   });
-  render();
 }
 
 function render() {
