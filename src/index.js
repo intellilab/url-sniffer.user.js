@@ -20,6 +20,9 @@ const STYLE_TO_SELECT = {
   stroke: '#bb08',
   fill: '#bb02',
 };
+const MODE_SINGLE = 0;
+const MODE_MULTIPLE = 1;
+
 let rendering = false;
 const mask = VM.getHostElement(false);
 mask.addStyle(stylesheet);
@@ -28,42 +31,111 @@ mask.root.addEventListener('mousedown', handleMouseDown);
 mask.root.addEventListener('mouseup', handleMouseUp);
 mask.root.addEventListener('mousemove', handleMouseMove);
 mask.root.addEventListener('click', handleClick);
-mask.root.addEventListener('dblclick', () => {
-  handleCopy();
-  close();
-});
+mask.root.addEventListener('dblclick', handleCallback);
 
-GM_registerMenuCommand('Toggle sniffer', toggle);
+GM_registerMenuCommand('Sniff links', sniffLinks);
+GM_registerMenuCommand('Sniff images', sniffImages);
 
 let context;
 
-function toggle() {
+function sniffLinks() {
   if (context) close();
-  else start();
+  start({
+    elements: document.querySelectorAll('a[href]'),
+    getItem(el) {
+      const href = el.tagName.toLowerCase() === 'a' && el.getAttribute('href');
+      if (href && !/^(?:#|javascript:)/.test(href)) return { el };
+    },
+    mode: MODE_MULTIPLE,
+    callback(selectedItems) {
+      copy(selectedItems);
+      close();
+    },
+  });
 }
 
-function start() {
-  if (context) return;
-  const items = Array.from(document.querySelectorAll('a[href]'))
-    .filter((a) => {
-      const href = a.getAttribute('href');
-      return href && !/^(?:#|javascript:)/.test(href);
-    })
-    .map((el) => ({ el }));
+function sniffImages() {
+  if (context) close();
+  const imageViewer = (
+    <div className={styles.image} onClick={(e) => e.stopPropagation()}></div>
+  );
+  const showImage = (img) => {
+    mask.root.append(imageViewer);
+    const { naturalWidth, naturalHeight } = img;
+    const containerWidth = imageViewer.clientWidth;
+    const containerHeight = imageViewer.clientHeight;
+    const scale = Math.min(1, containerWidth / naturalWidth);
+    const width = naturalWidth * scale;
+    const height = naturalHeight * scale;
+    const x = Math.max(0, (containerWidth - width) / 2);
+    const y = Math.max(0, (containerHeight - height) / 2);
+    imageViewer.innerHTML = '';
+    imageViewer.append(img);
+    img.style.transform = `scale(${scale}) translate(${x}px,${y}px)`;
+    context.paused = true;
+    mask.root.addEventListener('click', closeViewer);
+  };
+  const closeViewer = () => {
+    imageViewer.innerHTML = '';
+    imageViewer.remove();
+    context.paused = false;
+    mask.root.removeEventListener('click', closeViewer);
+  };
+  start({
+    getItem(el) {
+      let url;
+      if (el.tagName.toLowerCase() === 'img') {
+        url = el.src;
+      } else {
+        const bgImg = el.style.backgroundImage.match(/^url\((['"]?)(.*?)\1\)/);
+        url = bgImg?.[2];
+      }
+      return url && { el, url };
+    },
+    mode: MODE_SINGLE,
+    callback([item]) {
+      if (!item) return close();
+      const img = new Image();
+      img.src = item.url;
+      img.onload = () => {
+        showImage(img);
+      };
+    },
+  });
+}
+
+function start(opts) {
+  if (context) throw new Error('Context already exists');
+  const { elements, getItem, ...rest } = opts;
+  const items = Array.from(elements || document.querySelectorAll('*'))
+    .map(getItem)
+    .filter(Boolean);
   context = {
+    ...rest,
     items,
     index: -1,
     active: null,
+    disconnect: VM.observe(document.body, (mutations) => {
+      mutations.forEach((mut) => {
+        if (mut.type === 'childList') {
+          const newItems = Array.from(mut.addedNodes)
+            .filter((el) => !mask.root.contains(el))
+            .map(getItem)
+            .filter(Boolean);
+          context.items.push(...newItems);
+        }
+      });
+    }),
   };
   update();
   mask.show();
   document.addEventListener('scroll', update);
   document.addEventListener('resize', update);
-  GM_registerMenuCommand('Copy URLs', handleCopy);
 }
 
 function close() {
   if (!context) return;
+  context.disconnect?.();
   mask.root.innerHTML = '';
   mask.hide();
   context = null;
@@ -146,15 +218,21 @@ function setItemRect(item, style) {
 }
 
 function handleClick() {
+  if (context.paused) return;
   const activeItem = context.items[context.index];
   if (activeItem) {
-    activeItem.selected = !activeItem.selected;
-    setItemRect(activeItem, activeItem.selected && STYLE_SELECTED);
+    if (context.mode === MODE_SINGLE) {
+      context.callback([activeItem]);
+    } else {
+      activeItem.selected = !activeItem.selected;
+      setItemRect(activeItem, activeItem.selected && STYLE_SELECTED);
+    }
   }
 }
 
 function handleMouseDown(e) {
-  if (context.dragging) return;
+  if (context.dragging || context.mode === MODE_SINGLE || context.paused)
+    return;
   const x = e.clientX;
   const y = e.clientY;
   context.dragging = {
@@ -164,6 +242,7 @@ function handleMouseDown(e) {
 }
 
 function handleMouseMove(e) {
+  if (context.paused) return;
   const x = e.clientX;
   const y = e.clientY;
   if (context.dragging) {
@@ -230,10 +309,14 @@ function handleMouseUp() {
   context.dragging = null;
 }
 
-function handleCopy() {
-  const urls = context.items
-    .filter((item) => item.selected)
-    .map((item) => item.el.href);
+function handleCallback() {
+  const selectedItems = context.items.filter((item) => item.selected);
+  context.callback(selectedItems);
+}
+
+function copy(selectedItems) {
+  const urls = selectedItems.map((item) => item.el.href);
+  if (!urls.length) return;
   GM_setClipboard(urls.join('\r\n'));
   VM.showToast('URLs copied', {
     shadow: false,
