@@ -5,7 +5,7 @@ module.exports = {
   plugins: [
     // JSX
     ['@babel/plugin-transform-react-jsx', {
-      pragma: 'VM.createElement',
+      pragma: 'VM.hm',
       pragmaFrag: 'VM.Fragment',
     }],
   ].filter(Boolean),
