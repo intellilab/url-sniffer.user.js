@@ -40,11 +40,11 @@ function toggle() {
 function start() {
   if (context) return;
   const items = Array.from(document.querySelectorAll('a[href]'))
-    .filter(a => {
+    .filter((a) => {
       const href = a.getAttribute('href');
       return href && !/^(?:#|javascript:)/.test(href);
     })
-    .map(el => ({ el }));
+    .map((el) => ({ el }));
   context = {
     items,
     index: -1,
@@ -68,7 +68,7 @@ function close() {
 }
 
 function update() {
-  context.items.forEach(item => {
+  context.items.forEach((item) => {
     const rect = item.el.getBoundingClientRect();
     item.pos = {
       x: rect.left,
@@ -116,7 +116,7 @@ function renderActive() {
 }
 
 function renderSelected() {
-  context.items.forEach(item => {
+  context.items.forEach((item) => {
     if (item.rect) updatePosition(item.rect, item.pos);
   });
 }
@@ -148,7 +148,8 @@ function handleMouseDown(e) {
   const x = e.clientX;
   const y = e.clientY;
   context.dragging = {
-    x, y,
+    x,
+    y,
   };
 }
 
@@ -169,30 +170,37 @@ function handleMouseMove(e) {
     const h = Math.abs(y - y0);
     x0 = Math.min(x0, x);
     y0 = Math.min(y0, y);
-    updatePosition(context.dragging.rect, {
-      x: x0,
-      y: y0,
-      w,
-      h,
-    }, 0);
-    context.items.forEach(item => {
-      item.inSelection = (
-        item.pos.x >= x0
-        && item.pos.x + item.pos.w <= x0 + w
-        && item.pos.y >= y0
-        && item.pos.y + item.pos.h <= y0 + h
-      );
+    updatePosition(
+      context.dragging.rect,
+      {
+        x: x0,
+        y: y0,
+        w,
+        h,
+      },
+      0
+    );
+    context.items.forEach((item) => {
+      item.inSelection =
+        item.pos.x >= x0 &&
+        item.pos.x + item.pos.w <= x0 + w &&
+        item.pos.y >= y0 &&
+        item.pos.y + item.pos.h <= y0 + h;
       const state = (item.inSelection ? 2 : 0) + (item.selected ? 1 : 0);
-      setItemRect(item, {
-        1: STYLE_SELECTED,
-        2: STYLE_TO_SELECT,
-        3: STYLE_TO_DESELECT,
-      }[state]);
+      setItemRect(
+        item,
+        {
+          1: STYLE_SELECTED,
+          2: STYLE_TO_SELECT,
+          3: STYLE_TO_DESELECT,
+        }[state]
+      );
     });
   } else {
-    context.index = context.items.findIndex(({ pos }) => (
-      x >= pos.x && x <= pos.x + pos.w && y >= pos.y && y <= pos.y + pos.h
-    ));
+    context.index = context.items.findIndex(
+      ({ pos }) =>
+        x >= pos.x && x <= pos.x + pos.w && y >= pos.y && y <= pos.y + pos.h
+    );
   }
   render();
 }
@@ -201,7 +209,7 @@ function handleMouseUp() {
   if (!context.dragging) return;
   if (context.dragging.rect) {
     context.dragging.rect.remove();
-    context.items.forEach(item => {
+    context.items.forEach((item) => {
       if (item.inSelection) {
         item.inSelection = false;
         item.selected = !item.selected;
@@ -213,7 +221,9 @@ function handleMouseUp() {
 }
 
 function handleCopy() {
-  const urls = context.items.filter(item => item.selected).map(item => item.el.href);
+  const urls = context.items
+    .filter((item) => item.selected)
+    .map((item) => item.el.href);
   GM_setClipboard(urls.join('\r\n'));
   VM.showToast('URLs copied', {
     shadow: false,
