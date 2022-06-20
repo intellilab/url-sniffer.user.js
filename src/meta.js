@@ -9,4 +9,5 @@
 // @version     process.env.VERSION
 // @author      process.env.AUTHOR
 // @require     https://cdn.jsdelivr.net/combine/npm/@violentmonkey/dom@1,npm/@violentmonkey/ui@0.5
+// @supportURL  https://github.com/intellilab/url-sniffer.user.js
 // ==/UserScript==
